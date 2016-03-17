@@ -1,0 +1,491 @@
+---
+title: "15-02-10 BayesTraitsDataCollection"
+author: "Erin Fry"
+date: "February 10, 2016"
+output: html_document
+---
+This document is for collecting the valuable data from the many files created during 1) testing each gene under 4 different sets of parameters 2) the reconstruction of the ancestral states of humans and humans and chimpanzees; and finally, 3) after fosilization.
+
+This first chunk will take a minute, but it 
+#Stepping stone log marginal likelihood
+
+##Collects the log marginal likelihoods under each parameter for every gene
+
+```{r HM from Parameters, echo=FALSE}
+ #First, we find the Delta parameters under the Delta model for each gene
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26/ssdelta")
+options(stringsAsFactors = FALSE)
+ldf <- list() # creates a list
+listcsv<-paste("gene",as.character((order(dir(pattern = "*.txt")))),".txt", sep="") # creates the list of all the csv files in the directory in true (not computer) numerical order
+for (k in 1:length(listcsv)){ 
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t') # read files in listcsv into the ldf list
+  }
+#find the harmonic means
+deltass<-vector(length=length(ldf))
+for (i in 1:length(listcsv)){
+  deltass[i]<-as.numeric((ldf[[i]][nrow(ldf[[i]]),1]))
+}
+
+#First, we find the Kappa parameters under the Kappa model for each gene
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26/sskappa")
+options(stringsAsFactors = FALSE)
+ldf <- list() # creates a list
+listcsv<-paste("gene",as.character((order(dir(pattern = "*.txt")))),".txt", sep="") # creates the list of all the csv files in the directory in true (not computer) numerical order
+for (k in 1:length(listcsv)){ 
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t') # read files in listcsv into the ldf list
+  }
+#find the harmonic means
+kappass<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  kappass[i]<-as.numeric((ldf[[i]][nrow(ldf[[i]]),1]))
+}
+
+#First, we find the Plain harmonic mean under the Plain model for each gene
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26/ssplain")
+options(stringsAsFactors = FALSE)
+ldf <- list() # creates a list
+listcsv<-paste("gene",as.character((order(dir(pattern = "*.txt")))),".txt", sep="") # creates the list of all the csv files in the directory in true (not computer) numerical order
+for (k in 1:length(listcsv)){ 
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t') # read files in listcsv into the ldf list
+  }
+#find the harmonic means
+plainss<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+ plainss[i]<-as.numeric((ldf[[i]][nrow(ldf[[i]]),1]))
+}
+
+#First, we find the Kappa and Delta parameters under the KappaDelta model for each gene
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26/sskd")
+options(stringsAsFactors = FALSE)
+ldf <- list() # creates a list
+listcsv<-paste("gene",as.character((order(dir(pattern = "*.txt")))),".txt", sep="") # creates the list of all the csv files in the directory in true (not computer) numerical order
+for (k in 1:length(listcsv)){ 
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t') # read files in listcsv into the ldf list
+  }
+#find the harmonic means
+kappadeltass<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  kappadeltass[i]<-as.numeric((ldf[[i]][nrow(ldf[[i]]),1]))
+}
+
+```
+
+##Combine the information into one file to export, also indicate which model choice is best based on the harmonic mean of the Lh values
+
+```{r Write File for HM, echo=FALSE}
+#Combine all the values into one document to export into excel or for further analysis
+steppingstonevals<-(rbind(t(listcsv),
+                   t(deltass),t(kappass),
+                   t(plainss),t(kappadeltass)))
+#set the row names of the dataframe
+rownames(steppingstonevals)<-c("gene_number", "ss_Delta", "ss_Kappa",
+                         "ss_Plain", "ss_KD")
+
+#create a vector of which choice is best for the parameters for that gene's evolution
+choicess<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  choicess[i]<-(which.max(steppingstonevals[2:5,(i)]))
+}
+
+#combine that with the information and create a column, we are switching to a column driven table now
+steppingstonevals<-as.data.frame(t(rbind(steppingstonevals, choicess)))
+
+#lets compare the model choice using stepping stone to harmonic mean
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/bestharmonicpickancestral")
+HM<-read.csv("16-02-17AllGeneswithAnc.txt",sep='\t')
+HM<-HM[1:length(ldf),]
+
+steppingstonevals<-cbind(steppingstonevals,HM)
+diffchoices<-steppingstonevals[which(steppingstonevals$choicess!=steppingstonevals$choice),]
+
+#to use the model choices, save it and modify in excel to put into file for reconcstructing ancestral state
+write.table(t(choicess), "modelchoice.txt", sep= "\t")
+
+#export data
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone")
+write.table(steppingstonevals,"15-02-29sspicks.txt",sep='\t')
+```
+
+**Choice of 1=delta, 2=Kappa 3=Plain 4=Kappa and Delta**
+
+###Created a data file
+Now we have a file that looks like:
+
+```{r Head HM File}
+head(allgeneinfo)
+```
+
+###Use this code to analyze further potentially
+```{r unused but for analysis,echo=FALSE}
+
+library("stats")
+library("dplyr")
+
+#filter counts raw if articleType column says Research Article
+ChoiceKappa<- as.matrix(filter(allgeneinfo, choice=="2"))
+ChoiceDelta<- filter(allgeneinfo, choice=="1")
+ChoicePlain<- filter(allgeneinfo, choice=="3")
+ChoiceKappaDelta<- filter(allgeneinfo, choice=="4")
+```
+
+
+
+#Add the MRCA estimations after running BayesTraits again with the best parameter file. 
+##Find the ancestral values, confidnece intervals, and liklihoods
+```{r MRCA collection, echo=FALSE}
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26/ancestral")
+ldf <- list() # creates a list
+listcsv<-paste("gene",as.character((order(dir(pattern = "*.txt")))),".txt", sep="")
+
+for (k in 1:length(listcsv)){ 
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t') # read files in listcsv into the ldf list
+}
+
+
+#find the mean of the ancestral estimations, and for fun, the lower and upper confidence intervals
+MeanNode1<-vector(length=length(ldf)) # the mean
+UCINode1<-vector(length=length(ldf)) # upper limit of Confidence Interval
+LCINode1<-vector(length=length(ldf)) # lower limit of CI
+MeanNode2<-vector(length=length(ldf)) # the mean
+UCINode2<-vector(length=length(ldf)) # upper limit of Confidence Interval
+LCINode2<-vector(length=length(ldf)) # lower limit of CI
+
+for (i in 1:length(ldf)){
+  MeanNode1[i]<-mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )
+  UCINode1[i]<- mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )+ 2*sd(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )
+  LCINode1[i]<- mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )- 2*sd(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )
+
+  MeanNode2[i]<-mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )
+  UCINode2[i]<- mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )+ 2*sd(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )
+  LCINode2[i]<- mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )- 2*sd(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )
+  
+  }
+
+#Save the harmonic mean of Lh and the Lh for each gene as well
+LhAnc<-vector(length=length(ldf))
+harmonicmeanAnc<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  harmonicmeanAnc[i]<-(ldf[[i]][nrow(ldf[[i]])-1,3])
+  LhAnc[i]<-(ldf[[i]][nrow(ldf[[i]])-1,2])
+}
+
+```
+
+##Combine the Parameter Run Information with the Ancestral States and Liklihoods
+```{r Combine MRCA with HM from parameters, echo=FALSE}
+#combine the previous allageneinfo file with the ancestral info
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone")
+
+allgeneinfowithanc<-as.data.frame(cbind(steppingstonevals[,1:6],MeanNode1,UCINode1,LCINode1,MeanNode2,UCINode2,LCINode2))
+
+
+#write a table with all summary statistics so far
+write.table(allgeneinfowithanc,"15-03-01AllGeneswithAnc.txt",sep='\t')
+```
+
+###The table with all summary statistics from parameter choice and the ancestral estimations looks like
+```{r Head Anc DF}
+head(allgeneinfowithanc)
+```
+
+##Create a file for fossilization that contains the values of the H-C ancestral node to be fixed as the Human ancestor
+```{r Create File with Anc Node Values, echo=FALSE}
+#save just the Human-Chimpanzee node values to a simple file in the fossil file to be used in the next step
+write.table(t(MeanNode1),"allHCnode1.txt", sep='\t')
+```
+
+##let's visualize the data a bit
+```{r Visualize MRCA data, echo=FALSE}
+#Let's look at the genes expressed at lower levels
+plot(allgeneinfowithanc$MeanNode1,allgeneinfowithanc$MeanNode2, xlim=c(0,1000), ylim=c(0,1000), xlab="H-C Ancestral Value", ylab="Ancestral Human Value", main="Reconstruction TPM Values at Two Ancestral Nodes")
+abline(a=0,b=1)
+
+#now let's zoom out a bit
+plot(allgeneinfowithanc$MeanNode1,allgeneinfowithanc$MeanNode2, xlim=c(0,1000), ylim=c(0,1000), xlab="H-C Ancestral Value", ylab="Ancestral Human Value", main="Reconstruction TPM Values at Two Ancestral Nodes")
+abline(a=0,b=1)
+
+boxplot(allgeneinfowithanc$MeanNode1,allgeneinfowithanc$MeanNode2, outline=F, ylab="TPM", main="Ancestral Gene Expression Reconstructed Values", names = c("Human-Chimpanzee Ancestor","Human Ancestor"))
+
+#How different are the values estimated given the better model choice?
+steppingstonevals<-cbind(steppingstonevals,MeanNode1,MeanNode2)
+diffchoices<-steppingstonevals[which(steppingstonevals$choicess!=steppingstonevals$choice),]
+
+differencesNode1<-diffchoices$MeanNode1-diffchoices[,29]
+differencesNode2<-diffchoices$MeanNode2-diffchoices[,30]
+
+```
+
+
+
+#After Fossilization
+##Collect the Harmonic Mean of the liklihoods and the liklihood values at the last run of the simulation for the runs with fossilization at the Human ancestor
+```{r Collect Fossilzed HMs,echo=FALSE}
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26/FossilSS")
+ldf <- list() # creates a list
+listcsv<-paste("gene",as.character((order(dir(pattern = "*.txt")))),".txt", sep="") # creates the list of all the csv files in the directory in true (not computer) numerical order
+for (k in 1:length(listcsv)){ 
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t') 
+}
+
+Fossilss<-vector(length=length(ldf))
+for (i in 1:length(listcsv)){
+  Fossilss[i]<-as.numeric((ldf[[i]][nrow(ldf[[i]]),1]))
+}
+
+#to visualize the distribution of a gene of interest TPM values at both reconstructed states
+#first, import all of the ancestral MCMCs
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26/ancestral")
+ldf <- list() # creates a list
+listcsv<-paste("gene",as.character((order(dir(pattern = "*.txt")))),".txt", sep="") # creates the list of all the csv files in the directory in true (not computer) numerical order
+for (k in 1:length(listcsv)){ 
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t') 
+}
+#next choose your favorite gene
+coolgene<-ldf[[12080]]
+coolgene<-coolgene[1:(nrow(coolgene)-1),]
+hist(coolgene$Est.Node.02...1, main="MCMC Distribution of Reconstructed TPMs for EFEMP2",xlab="Estimated Value", ylab="Number of Iterations", col="#af8dc3", nclass=50)
+hist(coolgene$Est.Node.01...1, add=T,border="white", col="#7fbf7b", nclass=50)
+hist(coolgene$Est.Node.02...1, border="black", nclass=50, add=T)
+legend("topright", c("Human-Chimpanzee", "Human Ancestral"), col=c("#7fbf7b", "#af8dc3"), lwd=10)
+
+#or as a boxplot
+boxplot(as.numeric(coolgene$Est.Node.02...1),as.numeric(coolgene$Est.Node.01...1), notch=T, outline = F, ylab="Estimated TPM Value", names = c("Human-Chimpanzee", "Human Ancestral"),  cex.axis = 0.5, main = "MCMC Reconstruction of RPMs for EFEMP2", col=c("#7fbf7b", "#af8dc3"))
+
+
+
+library("ggplot2")
+p<-ggplot(data = coolgene, aes(coolgene$Est.Node.02...1)) 
+  +geom_histogram()
+
+```
+
+##Combine this information with all of the other information as well
+```{r Combine Fossil with Anc and HMs, echo=FALSE}
+#combine the data
+allgeneinfowithancandfos<-as.data.frame(cbind(allgeneinfowithanc,Fossilss))
+#print the first 10 rows
+head(allgeneinfowithancandfos)
+#save it!
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26")
+write.table(allgeneinfowithancandfos,"16-03-02fossil.txt", sep='\t')
+```
+
+#Calculate the BF for each gene
+```{r Caclulate BF, echo=FALSE}
+
+options(stringsAsFactors = FALSE)
+analysis<-read.csv("16-03-02fossil.txt",sep = "\t")
+
+#**Choice of 1=delta, 2=Kappa 3=Plain 4=Kappa and Delta**
+library("dplyr") 
+#create subdataframes that contain only genes for each of the 4 parameter options. This is necessary because to calculate hte BF, you need the HM from the best model to compare to
+deltagenes<-as.data.frame(select(filter(analysis,choicess==1), gene_number, ss_Delta,Fossilss))  %>% droplevels()
+kappagenes<-as.data.frame(select(filter(analysis,choicess==2), gene_number, ss_Kappa,Fossilss)) %>% droplevels()
+plaingenes<-as.data.frame(select(filter(analysis,choicess==3), gene_number, ss_Plain,Fossilss)) %>% droplevels()
+KDgenes<-as.data.frame(select(filter(analysis,choicess==4), gene_number, ss_KD,Fossilss)) %>% droplevels()
+
+#add a column to each for the BayesFactor, a quantification of support for the free model (col 2) over the fixed model (col 4)
+deltagenes$BF<-2*(deltagenes[,2]-deltagenes[,3])
+kappagenes$BF<-2*(kappagenes[,2]-kappagenes[,3])
+plaingenes$BF<-2*(plaingenes[,2]-plaingenes[,3])
+KDgenes$BF<-2*(KDgenes[,2]-KDgenes[,3])
+
+#combine into one file again, only containing the gene number and the BF
+allBF<-rbind(deltagenes[,c(1,4)],kappagenes[,c(1,4)],plaingenes[,c(1,4)],KDgenes[,c(1,4)])
+
+#Write this file onto the computer to combine with the previous HM and Anc gene information in excel
+write.table(allBF, "16-03-02withBF.txt", sep='\t')
+
+```
+
+##Visualize the data
+```{r Plot Hanc v. HCanc with BF as colors, echo=FALSE}
+#reimport the file so that there are no factors
+options(stringsAsFactors = FALSE)
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26")
+analysis<-read.csv("16-03-02allBF.txt",sep = "\t")
+
+
+#there are some genes that did not converge, so they may appear to have extremely sig values
+#get rid of those genes first
+analysis$ss_Kappa=as.numeric(analysis$ss_Kappa)
+analysis$ss_KD=as.numeric(analysis$ss_KD)
+analysis$Fossilss=as.numeric(analysis$Fossilss)
+analysis$MeanNode1=as.numeric(analysis$MeanNode1)
+analysis$MeanNode2=as.numeric(analysis$MeanNode2)
+analysis<-analysis[(which(analysis[,5]<0)),]
+analysis<-analysis[(which(analysis[,7]<0)),]
+analysis<-analysis[(which(analysis[,15]<0)),]
+analysis<-analysis[(which(analysis$MeanNode1>0.2)),]
+analysis<-analysis[(which(analysis$MeanNode2>0.2)),]
+analysis$BF=as.numeric(analysis$BF)
+
+
+#set the minimum Bayes Factor to be included in the scatter plot
+x=10
+#and narrow down the lists of genes to only those with positive support
+siggenes<-analysis[which(analysis$BF>x),]
+siggenes$BF=as.numeric(siggenes$BF)
+
+hist(siggenes$BF, freq=F, main="Bayes Factors of Genes with Positive Evidence for the Free v Fixed Models Using SSS", xlab="Bayes Factor", ylab="Proportion of Genes", nclass=50)
+
+sqrtsiggenes<-siggenes
+sqrtsiggenes$MeanNode1<-sqrt(sqrtsiggenes$MeanNode1)
+sqrtsiggenes$MeanNode2<-sqrt(sqrtsiggenes$MeanNode2)
+sqrtsiggenes<-na.exclude(sqrtsiggenes)
+sqrtsiggenes$BF=as.numeric(sqrtsiggenes$BF)
+
+
+
+# define how much evidence there is for each gene based on the BF value
+sqrtsiggenes$BFlev <- cut(sqrtsiggenes$BF, c(0, 2, 5, 10, max(sqrtsiggenes$BF)))
+# Reverse the levels and generate some labels for the legend
+sqrtsiggenes$labels <- factor(sqrtsiggenes$BFlev, levels = rev(levels(sqrtsiggenes$BFlev)),
+   labels = c('Very Strong Evidence', 'Strong Evidence', 'Positive Evidence',
+              'Weak Evidence'))
+
+
+library("ggplot2")
+p<-NULL
+
+df_layer_1 <- sqrtsiggenes[ sqrtsiggenes$labels =="Weak Evidence",]
+df_layer_2 <- sqrtsiggenes[ sqrtsiggenes$labels =="Positive Evidence",]
+df_layer_3 <- sqrtsiggenes[ sqrtsiggenes$labels =="Strong Evidence",]
+df_layer_4 <- sqrtsiggenes[ sqrtsiggenes$labels =="Very Strong Evidence",]
+
+
+
+#layering sqrt values
+p<-ggplot(data=sqrtsiggenes, mapping=aes(x=MeanNode1,y=MeanNode2)) + 
+      theme_bw() +
+      theme(plot.title= element_text(size=20, face="bold"), axis.title.x=element_text(size=20),axis.title.y=element_text(size=20)) +
+      ggtitle("Ancestral Transcript Levels and\n Evidence for Evolution on the Human Lineage") +
+      labs( x="Human-Chimpanzee Ancestral sqrt TPM", y="Ancestral Human sqrt TPM", face="bold", size=20) +
+    geom_point(data=df_layer_1, colour="#333333") +
+    geom_point(data=df_layer_2, colour="#df65b0", alpha=0.5) +
+    geom_point(data=df_layer_3, colour="#dd1c77", alpha=0.5) +
+    geom_point(data=df_layer_4, colour="#980043", alpha=0.5) +
+    geom_abline(intercept=0,slope=1) + 
+    scale_y_sqrt() + scale_x_sqrt()
+p
+
+
+#Now Let's just plot the genes that have strong or very strong evidence (BF>5)
+p<-ggplot(data=sqrtsiggenes, mapping=aes(x=MeanNode1,y=MeanNode2)) + 
+      theme_bw() +
+      theme(plot.title= element_text(size=20, face="bold"), axis.title.x=element_text(size=20),axis.title.y=element_text(size=20)) +
+      ggtitle("Ancestral Transcript Levels and\n Evidence for Evolution on the Human Lineage") +
+      labs( x="Human-Chimpanzee Ancestral sqrt TPM", y="Ancestral Human sqrt TPM", face="bold", size=20) +
+    geom_point(data=df_layer_3, colour="#dd1c77") +
+    geom_point(data=df_layer_4, colour="#980043") +
+    geom_abline(intercept=0,slope=1) + 
+    scale_y_sqrt(limits=c(0,50)) + scale_x_sqrt(limits=c(0,50))
+p
+
+
+
+
+
+######################################
+
+
+
+#square root of TPM values plot
+p<-ggplot(data=sqrtsiggenes, mapping=aes(x=MeanNode1,y=MeanNode2)) +
+      geom_point(aes(color=labels)) +
+      theme_bw() +
+      theme(plot.title= element_text(size=20, face="bold"), axis.title.x=element_text(size=20),axis.title.y=element_text(size=20)) +
+      ggtitle("Ancestral Transcript Levels and\n Evidence for Evolution on the Human Lineage") +
+      labs( x="Human-Chimpanzee Ancestral sqrt TPM", y="Ancestral Human sqrt TPM", face="bold", size=20) +
+      geom_abline(intercept=0,slope=1) + 
+      scale_y_sqrt() + scale_x_sqrt() +
+      scale_colour_manual( name="Bayes Factor Evidence", breaks=levels(sqrtsiggenes$labels), values = c( "#980043", "#dd1c77", "#df65b0", "#333333"))
+p
+
+#not sqrt normalized plot
+p<-ggplot(data=siggenes, mapping=aes(x=MeanNode1,y=MeanNode2)) +
+        geom_point(aes(color=BF)) +
+        theme(axis.title.x=element_text(size=20),axis.title.y=element_text(size=20)) +
+        labs(x="Human-Chimpanzee Ancestral TPM", y="Ancestral Human TPM", face="bold", size=20) +
+        scale_color_continuous(name="Bayes Factor Evidence", breaks=with(siggenes,c(0,2,5,10)), labels=c("Weak", "Positive","Strong","Very Strong"),low="#CCCCFF", high="#330033") +
+        geom_abline(intercept=0,slope=1) + 
+        scale_x_continuous(limits=c(0,100)) + scale_y_continuous(limits=c(0,100))
+p
+  
+
+scale_y_sqrt(limits=c(0,1000)) + scale_x_sqrt(limits=c(0,1000))
++scale_colour_manual(values = c("#CCFFCC","", "green")
+
+
+
+
+
+p<-ggplot(data = as.data.frame(allgenesBF), aes(x = MeanNode1, y = MeanNode2)) +
+  ggtitle("PCA plot of Brain Transcipt Levels in Primates, >0") +
+  theme(plot.title = element_text(size=20, face="bold", vjust=2))
+p
+
+
+p<-ggplot(data = as.data.frame(v), aes(x = v[,2], y = v[,3], label = colnames(TP.center))) +
+  geom_hline(yintercept = 0, color = "gray65") +
+  geom_vline(xintercept = 0, color = "gray65") +
+  geom_text(color= categoricalData, alpha = 0.8, size = 6) +
+  ggtitle("PCA plot of Brain Transcipt Levels in Primates, >0") +
+  theme(plot.title = element_text(size=20, face="bold", vjust=2))
+p
+
+plot(allgenesBF$MeanNode1,allgenesBF$MeanNode2,xlim=c(0,1000))
+abline(a=0,b=1)
+```
+
+
+
+```{r heatmap}
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/bestharmonicpickancestral")
+original<-t(read.csv("TPM_BayesTraits.txt",sep='\t', header=FALSE))
+colnames(original)<-original[1,]
+original[1,]<-original[2,]
+
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/Fossil")
+analysis<-read.csv("16-02-22allBF.txt", sep='\t')
+
+transcripts<-cbind(analysis[,c(18,21,26)],original)
+
+x=0
+
+#and narrow down the lists of genes to only those with positive support
+
+transcripts<-transcripts[which(transcripts$BF>x),]
+transcripts<-transcripts[(which(transcripts$MeanNode2>1)),]
+transcripts<-transcripts[(which(transcripts$MeanNode1>1)),]
+
+heatmap()
+
+
+
+
+
+
+
+
+sqrttranscripts<-as.numeric(transcripts)
+sqrttranscripts<-sqrt(as.numeric(transcripts[,-c(1,4)]))
+
+sqrtsiggenes<-siggenes[(which(siggenes$MeanNode2>0)),]
+sqrtsiggenes$MeanNode1<-sqrt(sqrtsiggenes$MeanNode1)
+sqrtsiggenes$MeanNode2<-sqrt(sqrtsiggenes$MeanNode2)
+sqrtsiggenes<-na.exclude(sqrtsiggenes[,1:26])
+sqrtsiggenes$BF=as.numeric(sqrtsiggenes$BF)
+
+
+
+
+```
+
+```{r TPM dist of cool genes}
+library("dplyr") 
+
+
+
+```
+

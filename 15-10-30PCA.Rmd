@@ -1,0 +1,173 @@
+---
+title: "UsingPCA"
+author: "Erin Fry"
+date: "October 6, 2015"
+output: html_document
+---
+
+
+
+```{r Convert to TPMs}
+#import the data
+raw.data<-read.csv("NormalizedTPM_ConstitutiveAlignedExons_Primate1to1Orthologues.txt", sep='\t')
+
+#get rid of the gene names
+raw.no.names<-raw.data[,2:ncol(raw.data)]
+#sum the RPKM values for each sample
+sums<-colSums(raw.no.names[,1:ncol(raw.no.names)])
+
+TPM<-(raw.no.names/sums)*1000000
+TPM<-cbind(raw.data[,1],TPM)
+
+
+write.table(TPM, "NormalizedTPM_ConstitutiveAlignedExons_Primate1to1Orthologues.txt", sep='\t')
+```
+
+
+#Load the data
+First, the data should be examined in excel. All mitochondrial genes are removed using ensembl > biomart > filter with gene IDs, attributes gene ID and chromosome > results export to file, filter out MT.
+
+```{r Load data, include=FALSE}
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/")
+TPM_brain<-read.table("BRalignedExons.txt", header=TRUE, sep="\t", na.strings='NA', stringsAsFactors = FALSE)
+#be sure that there are no mitochondrial genes
+
+#make sure to eliminate all Mitochondrial genes, then get rid of the Chromosome.Name column
+library("dplyr")
+TPM_brain<-filter(TPM_brain, Chromosome !="MT")
+TPM_brain<- TPM_brain[,1:(ncol(TPM_brain)-1)]
+
+#need to remove all rows with n/as
+#x<-c(which(is.na(TPM_brain)))
+#x<-as.numeric(x)
+#TPM1<-TPM_brain[-26514, ]
+#TPM1<-na.omit(TPM1)
+
+rownames(TPM_brain)<-TPM_brain[,1]
+identical(rownames(TPM_brain), TPM_brain[,1])
+TPM_brain <- TPM_brain[-nrow(TPM_brain),-1]
+
+#make sure only taking genes with >0 TPM expression level
+TPM_brain<- TPM_brain[rowSums(TPM_brain)!=0,]
+TPM_BayesTraits<-t(TPM_brain)
+write.table(TPM_BayesTraits, "TPM_BayesTraits.txt",sep='\t')
+```
+
+
+```{r PCA col sums greater than 0}
+
+#center data by row mean (mean of gene trascription data) so that extreme values don't heavily influence PCs
+TP.center=TPM_brain-rowMeans(TPM_brain)
+#use svd to create PCs, v, u, and d are attributes of the data
+svd.tp=svd(TP.center);v=svd.tp$v;u=svd.tp$u;d=svd.tp$d
+#plot PCs 1 and 2 with text as names
+#plot(v[,1],v[,2])
+#text(v[,1],v[,2],colnames(TPM_brain))
+#par(v[,1],v[,2],col=mycolors)
+
+#visualize variance explained by each PC
+plot(svd.tp$d^2/sum(svd.tp$d^2), xlim = c(0, 15), type = "b", pch = 16, xlab = "Principal Components", ylab = "variance explained", main="Variance In each PC")
+
+categoricalData=c("hsa.br.M.1"="blue", "hsa.br.M.2"="blue", "hsa.br.M.3"="blue", "hsa.br.M.4"="blue", "hsa.br.M.5"="blue", "hsa.br.F.1"="blue", "ptr.br.M.3"="red", "ptr.br.M.2"="red", "ptr.br.M.5"="red","ptr.br.M.1"="red", "ptr.br.M.4"="red", "ptr.br.F.1"="red", "ppa.br.M.1"="#999999", "ppa.br.F.1"="#999999", "ppa.br.F.2"="#999999", "ggo.br.M.1"="#0072B2", "ggo.br.F.1"="#0072B2", "ppy.br.M.1"="#56B4E9","ppy.br.F.1"="#56B4E9", "mml.br.M.2"="orange", "mml.br.M.1"="orange", "mml.br.F.1"="orange")
+
+#or use ggplot, which is easier for now
+library("ggplot2")
+p<-ggplot(data = as.data.frame(v), aes(x = v[,1], y = v[,2], label = colnames(TP.center))) +
+  geom_hline(yintercept = 0, color = "gray65") +
+  geom_vline(xintercept = 0, color = "gray65") +
+  geom_text(color= categoricalData, alpha = 0.8, size = 6) +
+  ggtitle("PCA plot of Brain Transcipt Levels in Primates, >0") +
+  theme(plot.title = element_text(size=20, face="bold", vjust=2))
+p
+
+#create a heatmap
+heatmap(as.matrix(TP.center),)
+
+```
+
+
+
+
+```{r PCA col sums greater than 0 without mml.brM1, mml.brF1, hsa.brM5 because sample from non cortex tissue}
+TPM_brain1<- TPM_brain[,-c(5,21,22)]
+TPM_brain1<- TPM_brain1[colSums(TPM_brain1)!=0, ]
+
+TP.center=TPM_brain1-rowMeans(TPM_brain1)
+
+
+#use svd to create PCs, v, u, and d are attributes of the data
+svd.tp=svd(TP.center);v=svd.tp$v;u=svd.tp$u;d=svd.tp$d
+#plot PCs 1 and 2 with text as names
+#plot(v[,1],v[,2])
+#text(v[,1],v[,2],colnames(TPM_brain))
+#par(v[,1],v[,2],col=mycolors)
+
+mycolors1<-c("blue", "blue", "blue", "blue", "blue", "red", "red", "red", "red", "red", "red", "#999999", "#999999", "#999999", "#0072B2", "#0072B2", "#56B4E9", "#56B4E9", "orange")
+
+#or use ggplot, which is easier for now
+library(ggplot2)
+p<-ggplot(data = as.data.frame(v), aes(x = v[,1], y = v[,2], label = colnames(TP.center))) +
+  geom_hline(yintercept = 0, color = "gray65") +
+  geom_vline(xintercept = 0, color = "gray65") +
+  geom_text(color= mycolors1, alpha = 0.8, size = 6) +
+  ggtitle("PCA plot of Brain Transcipt Levels in Primates Frontal Cortices") +
+  theme(plot.title = element_text(size=20, face="bold", vjust=2)) +
+  labs( x="PC1 (explained variance, 0.369)", y="PC2 (explained variance, 0.275)", face="bold", size=30)
+p
+
+heatmap(as.matrix(TP.center))
+```
+
+
+```{r bootstrapping SVD}
+#bootstrap through the PCs by creating new matrices
+#choose the total number of new data to create (must think about if by individuals or genes)
+sample=22
+
+#pick sample new observations, plot onto PC plot, then pick another and plot cont.....
+#B is the total number of bootstraps
+B=50
+
+#begin initial PC plot from original data
+library(ggplot2)
+p<-ggplot(data = as.data.frame(v), aes(x = v[,1], y = v[,2], label = colnames(TP.center))) +
+  geom_hline(yintercept = 0, color = "gray65") +
+  geom_vline(xintercept = 0, color = "gray65") +
+  geom_text(color= categoricalData, alpha = 0.8, size = 6) +
+  ggtitle("PCA plot of Brain Transcipt Levels in Primates, <0") +
+  theme(plot.title = element_text(size=20, face="bold", vjust=2))
+p
+
+#set new TP.center data to TP.center.boot to not override
+TP.center.boot=TP.center
+
+#do B bootstraps by pikcing 'sample' number of individuals from original data for each bootstrap
+for(b in 1:B){
+  newcol=matrix(nrow=nrow(TP.center),ncol=sample)
+#sample random individuals from data (TP.center)
+for(i in 1:sample){
+  ind=sample(seq(1:22),1)
+  newcol[,i]=TP.center.boot[,ind]
+  }
+#with new matrix, find PCs
+#center data by row mean (mean of gene trascription data) so that extreme values don't heavily influence PCs
+#use svd to create PCs, v, u, and d are attributes of the data
+svd.boot=svd(as.matrix(newcol));v.b=svd.boot$v
+#add to the plot
+p<- p+ geom_text(aes(x = v.b[,1], y = v.b[,2]), color= categoricalData, alpha = 0.8, size = 6, add=T)
+}
+#print new bootstrapped PC analysis
+p
+
+
+
+
+p+ layer(geom_text(aes(x = v.b[,1], y = v.b[,2]), color= categoricalData, alpha = 0.8, size = 6, add=T))
+x=1
+for(b in 1:B){
+  x=x+1
+  }
+x
+
+```
+

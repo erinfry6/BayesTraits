@@ -1,0 +1,210 @@
+---
+title: "15-12-16NodeEstimation"
+author: "Erin Fry"
+date: "December 17, 2015"
+---
+
+This is an R Markdown file that contains code for finding the ancestral node value estimates using various number of files and genes/nodes to be estimated. Please make sure you read the heading to make sure you are using the correct code for your files!
+
+#One gene per simulation
+##multiple runs
+
+``` {r One gene multiple simulations}
+#import the MCMC simulations
+ldf <- list() # creates a list
+listcsv <- dir(pattern = "*.txt") # creates the list of all the csv files in the directory
+for (k in 1:length(listcsv)){
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t')
+}
+
+#create a vector with the harmonic mean of the last iteration for each run
+harmonicmeans<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  harmonicmeans[i]<-(ldf[[i]][nrow(ldf[[1]])-1,3])
+}
+
+#find the run with the best harmonic mean (best likelihood estimation)
+winner<-ldf[[which.max(harmonicmeans)]][-nrow(ldf[[1]]),]
+
+MRCA1est<-mean(winner$Est.Node.01...1)
+MRCA1sd<-sd(winner$Est.Node.01...1)
+MRCA2est<-mean(winner$Est.Node.02...1)
+MRCA2sd<-sd(winner$Est.Node.02...1)
+```
+
+##one run
+
+``` {r One gene one simulation}
+#import the MCMC simulations
+ldf <- list() # creates a list
+listcsv<-paste("gene",as.character((order(dir(pattern = "*.txt")))),".txt", sep="") # creates the list of all the csv files in the directory in true (not computer) numerical order
+for (k in 1:length(listcsv)){ 
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t') # read files in listcsv into the ldf list
+}
+
+#check to make sure Lh and Harmonic Mean and similar
+harmonicmeans<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  harmonicmeans[i]<-(ldf[[i]][nrow(ldf[[1]])-1,3])  }
+
+Lh<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  Lh[i]<-(ldf[[i]][nrow(ldf[[1]])-1,2]) }
+
+#check to see which genes have very differing values!!!
+diff=100 # set this to say how big a difference is too big
+which(abs(harmonicmeans-Lh)>diff) # identifies which genes
+(harmonicmeans-Lh)[which(abs(harmonicmeans-Lh)>diff)] # prints difference
+
+#find the harmonic mean of the ancestral state for each gene and the 95% CI based on posterior distribution
+library("psych") # use library psych
+
+EstNode1<-vector(length=length(ldf)) # create empty vectors
+MeanNode1<-vector(length=length(ldf)) # the mean
+UCINode1<-vector(length=length(ldf)) # upper limit of Confidence Interval
+LCINode1<-vector(length=length(ldf)) # lower limit of CI
+for (i in 1:length(ldf)){
+  EstNode1[i]<-harmonic.mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 ) #save harmonic mean of node estimations for entire run
+  MeanNode1[i]<-mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )
+  UCINode1[i]<- mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )+ 2*sd(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )
+  LCINode1[i]<- mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )- 2*sd(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.01...1 )
+  }
+
+EstNode2<-vector(length=length(ldf)) # create empty vectors
+MeanNode2<-vector(length=length(ldf)) # the mean
+UCINode2<-vector(length=length(ldf)) # upper limit of Confidence Interval
+LCINode2<-vector(length=length(ldf)) # lower limit of CI
+for (i in 1:length(ldf)){
+  EstNode2[i]<-harmonic.mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 ) #save harmonic mean of node estimations for entire run
+  MeanNode2[i]<-mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )
+  UCINode2[i]<- mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )+ 2*sd(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )
+  LCINode2[i]<- mean(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )- 2*sd(ldf[[i]][-nrow(ldf[[i]]),]$Est.Node.02...1 )
+  }
+#create one matrix of all summary values for all genes to export or check for negative values
+onematrix<-rbind(t(UCINode1),t(MeanNode1),t(LCINode1),t(EstNode1),t(UCINode2),t(MeanNode2),t(LCINode2),t(EstNode2))
+#how many negative values are there?
+length(which(onematrix<0))
+#how many of those are in the means?
+length(which(onematrix[c(2,6),]<0))
+#export data
+write.table(onematrix,"15-01-29ancestralcheckingnegatives.txt",sep='\t')
+
+hist(EstNode1, nclass=1000) #take a look at it... help??
+```
+
+
+
+#Multiple Genes per simulation
+##Multiple Runs
+```{r multiple genes per sim, multiple runs}
+#import the MCMC simulations
+ldf <- list() # creates a list
+listcsv <- dir(pattern = "*.txt") # creates the list of all the csv files in the directory
+for (k in 1:length(listcsv)){
+  ldf[[k]]<- read.csv(listcsv[k], sep='\t')
+}
+
+#create a vector with the harmonic mean of the last iteration for each run
+harmonicmeans<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  harmonicmeans[i]<-(ldf[[i]][nrow(ldf[[1]])-1,3])
+}
+
+#find the run with the best harmonic mean (best likelihood estimation)
+winner<-ldf[[which.max(harmonicmeans)]][-nrow(ldf[[1]]),]
+
+#find the mean of the ancestral node1 (H-C) estimations for all genes in ngene
+MRCA1est<-vector(length=ngene)
+MRCA1est[1]<-mean(winner$Est.Node.01...1)
+y<-as.numeric(which(colnames(winner)=="Est.Node.01...1"))
+
+for (i in 2:ngene){
+  MRCA1est[i]<- mean(winner[,y+i-1])
+}
+
+#find the standard deviation of the anectral node1 (H-C) estimations for all genes in ngene
+MRCA1standev<-vector(length=ngene)
+MRCA1standev[1]<-sd(winner$Est.Node.01...1)
+y<-as.numeric(which(colnames(winner)=="Est.Node.01...1"))
+
+for (i in 2:ngene){
+  MRCA1standev[i]<- sd(winner[,y+i-1])
+}
+
+print(MRCA1est)
+print(MRCA1standev)
+
+
+
+
+#find the mean of the ancestral node2 (H) estimations for all genes in ngene
+MRCA2est<-vector(length=ngene)
+MRCA2est[1]<-mean(winner$Est.Node.02...1)
+y<-as.numeric(which(colnames(winner)=="Est.Node.02...1"))
+
+for (i in 2:ngene){
+  MRCA2est[i]<- mean(winner[,y+i-1])
+}
+
+#find the standard deviation of the anectral node2 (H) estimations for all genes in ngene
+MRCA2standev<-vector(length=ngene)
+MRCA2standev[1]<-sd(winner$Est.Node.02...1)
+y<-as.numeric(which(colnames(winner)=="Est.Node.02...1"))
+
+for (i in 2:ngene){
+  MRCA2standev[i]<- sd(winner[,y+i-1])
+}
+
+print(MRCA2est)
+print(MRCA2standev)
+
+
+```
+
+
+#Hamonic Mean code
+```{r}
+
+test<-ldf[[1]]
+str(ldf[[1]]) 
+
+harmonicmeans10k<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  harmonicmeans10k[i]<-(ldf[[i]][10,3])
+}
+
+harmonicmeans1m<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  harmonicmeans1m[i]<-(ldf[[i]][10,3])
+}
+
+
+
+
+
+#find the harmonic mean of the simulations
+library("psych")
+means<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  means[i]<-harmonic.mean(ldf[[i]]$Lh)
+}
+
+
+fossil1<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  fossil1[i]<-harmonic.mean(ldf[[i]]$Est.Node.01...1, na.rm=TRUE)
+}
+
+fossil2<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  fossil2[i]<-harmonic.mean(ldf[[i]]$Est.Node.01...2, na.rm=TRUE)
+}
+
+hist(fossil2, main="MRCA 2, round 2 Directional MCMC", nclass = 100)
+
+
+fossil1mean<-vector(length=length(ldf))
+for (i in 1:length(ldf)){
+  fossil1mean[i]<-mean(ldf[[i]]$Est.Node.01...1, na.rm=TRUE)
+```
+

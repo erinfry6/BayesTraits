@@ -1,0 +1,176 @@
+---
+title: "16-03-02CrossHMSSComparisons"
+author: "Erin Fry"
+date: "March 2, 2016"
+output: html_document
+---
+
+This file is to compare the results from frontal cortex BayesTraits ancestral reconstruction and evolution of transcription levels using two separate likelihood models: stepping stone sampler and harmonic mean.
+
+```{r import the data from both}
+#We need to import the summary statistics from each method
+options(stringsAsFactors = FALSE)
+
+#first, let's input the SSS
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26")
+SSS<-read.csv("16-03-02allBF.txt",sep = "\t")
+
+#now input HM
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/bestharmonicpickancestral")
+HM<-read.csv("16-02-22allBF.txt",sep = "\t")
+
+
+#combine relavent information into one matrix so its easier to plot
+library("dplyr") 
+combo<-cbind(select(SSS,Associated_Name,gene_number,ss_Delta,ss_Kappa,ss_Plain,ss_KD,choicess,MeanNode1,MeanNode2,Fossilss,BF),select(HM,HM_Delta,HM_Kappa,HM_Plain,HM_KD,choice,MeanNode1,MeanNode2,harmonicmeanFos,BF))
+#reset colnames
+colnames(combo)<-c("gene_name","gene_number","ss_Delta","ss_Kappa", "ss_Plain","ss_KD", "choicess","ssHC","ssHanc", "ssFos","ssBF","HM_Delta","HM_Kappa","HM_Plain","HM_KD", "choice","hmHC","hmHanc","hmFos","hmBF")
+
+#eliminate any that did not converge
+combo<-filter(combo, ss_Kappa <0, ss_KD<0, ssFos<0, HM_Kappa<0, HM_KD <0, hmFos<0, ssHC>0.2, ssHanc>0.2,hmHC>0.2,hmHanc>0.2)
+
+#lets add on a column for the choices values made
+combo$ssbest<-1
+combo$HMbest<-1
+for (i in 1:nrow(combo)){
+  if(combo[i,7]==4){
+    combo[i,21]<-combo[i,6]
+  } else if (combo[i,7]==3){
+    combo[i,21]<-combo[i,5]
+  }else if (combo[i,7]==2){
+    combo[i,21]<-combo[i,4]
+  } else
+    combo[i,21]<-combo[i,3]
+}
+for (i in 1:nrow(combo)){
+  if(combo[i,16]==4){
+    combo[i,22]<-combo[i,15]
+  } else if (combo[i,16]==3){
+    combo[i,22]<-combo[i,14]
+  }else if (combo[i,16]==2){
+    combo[i,22]<-combo[i,13]
+  } else
+    combo[i,22]<-combo[i,12]
+}
+
+```
+
+Now let's make some plots
+
+```{r Comparing Ancestral value estimations for HC and Hanc}
+sqrtcombo<-combo
+sqrtcombo$ssHC<-sqrt(sqrtcombo$ssHC)
+sqrtcombo$ssHanc<-sqrt(sqrtcombo$ssHanc)
+sqrtcombo$hmHC<-sqrt(sqrtcombo$hmHC)
+sqrtcombo$hmHanc<-sqrt(sqrtcombo$hmHanc)
+
+#plot the human-chimp ancestral reconstructed sqrt TPM values
+p<-ggplot(data=sqrtcombo, mapping=aes(x=hmHC,y=ssHC)) + 
+  geom_point(alpha=0.5) +
+      theme_bw() +
+      theme(plot.title= element_text(size=20, face="bold"), axis.title.x=element_text(size=20),axis.title.y=element_text(size=20)) +
+      ggtitle("sqrt(Human-Chimpanzee Ancestral Reconstructed TPM)") +
+      labs( x="Estimated using Harmonic Mean", y="Estimated using Stepping Stone Sampler", face="bold", size=20) +
+    geom_abline(intercept=0,slope=1) + 
+    scale_y_log10() + scale_x_log10()
+
+p+ geom_vline(xintercept=.2) + geom_hline(yintercept=0.2)
+
+
+#plot the human ancestral reconstructed sqrt TPM values
+p<-ggplot(data=sqrtcombo, mapping=aes(x=hmHanc,y=ssHanc)) + 
+  geom_point(alpha=0.5) +
+      theme_bw() +
+      theme(plot.title= element_text(size=20, face="bold"), axis.title.x=element_text(size=20),axis.title.y=element_text(size=20)) +
+      ggtitle("sqrt(Ancestral Human Reconstructed TPM)") +
+      labs( x="Estimated using Harmonic Mean", y="Estimated using Stepping Stone Sampler", face="bold", size=20) +
+    geom_abline(intercept=0,slope=1) + 
+    scale_y_log10() + scale_x_log10()
+p+ geom_vline(xintercept=.2) + geom_hline(yintercept=0.2)
+```
+
+```{r ranking comparisons}
+#compare BF using the two methods
+plot(combo$hmBF,combo$ssBF)
+
+#compare the harmonic mean of the likelihood and the log marginal likelihood(sss) determined by the two in the free state
+plot(combo$ssbest,combo$HMbest, main="Comparing the Harmonic Mean of the \nLikelihood to the Log Marginal Likelihood(LML)", xlab="LML with Stepping Stone Sampler", ylab="Harmonic Mean")
+abline(0,1)
+
+```
+
+
+```{r look at housekeeping genes}
+#import list of housekeeping genes
+setwd("~/Desktop/Erin Fry")
+hkgenes<-t(read.table("HouseKeepingGenes.txt", header=FALSE))
+#make a new matrix of all the housekeeping genes in combo
+sshkgenes<-combo[combo$gene_name %in% hkgenes,]
+
+length(which(sshkgenes$ssBF>10))/nrow(sshkgenes)
+length(which(combo$ssBF>10))/nrow(combo)
+binom.test(x = length(which(sshkgenes$ssBF>10)),n = nrow(sshkgenes),p = (length(which(combo$ssBF>10))/nrow(combo)))
+
+length(which(sshkgenes$hmBF>5))/nrow(sshkgenes)
+length(which(combo$hmBF>5))/nrow(combo)
+binom.test(x = length(which(sshkgenes$hmBF>5)),n = nrow(sshkgenes),p = (length(which(combo$hmBF>5))/nrow(combo)))
+
+hist(as.numeric(sshkgenes$ssBF),freq = F, col="#7fbf7b", ylab="Proportion of Genes", xlab="SSS BF", main="Bayes Factors of HouseKeeping v All Converged Genes with TPM>0.2", nclass=100, ylim=c(0,.05))
+hist(as.numeric(combo$ssBF), freq=F, add=T, nclass=200, col="#af8dc3")
+legend("topright", c("House Keeping Genes", "All Genes"), col=c("#7fbf7b", "#af8dc3"), lwd=10)
+
+#without outliers
+Data<- cbind(sshkgenes,combo$ssBF)
+boxplot(as.numeric(sshkgenes$ssBF),as.numeric(combo$ssBF), notch=T, outline = F, ylab="Bayes Factor", names = c("House Keeping Genes","All Genes"), cex.axis = 0.5, main = "Main Title", col=c("#7fbf7b", "#af8dc3"))
+stripchart (sshkgenes$ssBF, combo$ssBF, method = "jitter", 
+            add = T, vertical = T,
+            pch = 20, col = rgb (0,0,0, maxColorValue = 255, alpha = 100),
+            jitter = 0.25)
+
+#with outliers
+boxplot(as.numeric(sshkgenes$ssBF),as.numeric(combo$ssBF), notch=T, ylab="Bayes Factor", names = c("House Keeping Genes","All Genes"), cex.axis = 0.5, main = "Main Title", col=c("#7fbf7b", "#af8dc3"))
+
+
+
+hist(as.numeric(combo$ssBF), freq=F,  nclass=50, border="blue")
+hist(as.numeric(sshkgenes$ssBF),freq = F,ylim=c(0,.05), border="red", ylab="Proportion of Converged Genes", xlab="HM BF", main="Bayes Factors of HouseKeeping v All Genes", add=T)
+legend("topright", c("House Keeping Genes", "All Genes"), col=c("#7fbf7b", "#af8dc3"), lwd=10)
+```
+
+
+```{r looking at chromsoome 19 enriched genes}
+setwd("~/Desktop/Erin Fry/BrainTranscription/BayesTraits/steppingstone/feb26")
+chrgenes<-t(read.table("16-03-07chr19enriched.txt", header=FALSE))
+#make a new matrix of all the housekeeping genes in combo
+chr19genes<-SSS[ which(SSS[,1] %in% chrgenes),]
+
+#we only filtered the genes to look for enrichments using SSS, so we need to filter sss matrix this way for comparisons
+SSS<-filter(SSS, ss_Kappa <0, ss_KD<0, Fossilss<0, MeanNode1>0.2, MeanNode2>0.2)
+
+SSSdiff<-(SSS$MeanNode1-SSS$MeanNode2)
+length(which(SSSdiff<0))
+
+chr19diff<-(chr19genes$MeanNode1-chr19genes$MeanNode2)
+length(which(chr19diff>0))
+
+binom.test(x = length(which(chr19diff<0)),n = length(chr19diff),p = 0.5)
+binom.test(x = length(which(SSSdiff<0)),n = length(SSSdiff),p = 0.5)
+mean(SSSdiff)
+boxplot(SSSdiff,outline=F,notch=T)
+abline(h=0)
+
+
+library("PASWR")
+SIGN.test((chr19genes$MeanNode1-chr19genes$MeanNode2), md=median(SSS$MeanNode1-SSS$MeanNode2))
+SIGN.test((chr19genes$MeanNode1-chr19genes$MeanNode2), md=0)
+SIGN.test((SSS$MeanNode1-SSS$MeanNode2), md=0)
+
+
+hist((chr19genes$MeanNode1-chr19genes$MeanNode2), nclass=50, freq=F)
+hist((SSS$MeanNode1-SSS$MeanNode2), nclass=1000, add=T, freq=F, col="red")
+mean((chr19genes$MeanNode1-chr19genes$MeanNode2))
+
+boxplot( (chr19genes$MeanNode1-chr19genes$MeanNode2) , (combo$ssHC-combo$ssHanc) , outline=F)
+
+```
+
